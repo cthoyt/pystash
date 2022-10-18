@@ -64,6 +64,7 @@ __all__ = [
     "write_zipfile_np",
     "read_zip_np",
     "read_zipfile_rdf",
+    "read_zipfile_xml",
     # Tarfile utilities
     "write_tarfile_csv",
     "read_tarfile_csv",
@@ -73,6 +74,7 @@ __all__ = [
     # Standard readers
     "read_rdf",
     # Downloaders
+    "read_google_sheet",
     "download_from_google",
     "download_from_s3",
     # Misc
@@ -661,6 +663,21 @@ def read_tarfile_xml(path: Union[str, Path], inner_path: str, **kwargs):
     with tarfile.open(path) as tar_file:
         with tar_file.extractfile(inner_path) as file:  # type: ignore
             return etree.parse(file, **kwargs)
+        
+def read_zipfile_xml(path: Union[str, Path], inner_path: str, **kwargs):
+    """Read an inner XML file from a zip archive.
+
+    :param path: The path to the zip archive
+    :param inner_path: The path inside the zip archive to the xml file
+    :param kwargs: Additional kwargs to pass to :func:`lxml.etree.parse`
+    :return: An XML element tree
+    :rtype: lxml.etree.ElementTree
+    """
+    from lxml import etree
+
+    with zipfile.ZipFile(file=path) as zip_file:
+        with zip_file.open(inner_path) as file:
+            return etree.parse(file, **kwargs)
 
 
 def read_rdf(path: Union[str, Path], **kwargs):
@@ -725,6 +742,23 @@ def get_commit(org: str, repo: str, provider: str = "git") -> str:
 CHUNK_SIZE = 32768
 DOWNLOAD_URL = "https://docs.google.com/uc?export=download"
 TOKEN_KEY = "download_warning"  # noqa:S105
+
+
+def read_google_sheet(google_sheet: str, gid: Union[str, int] = 0, **kwargs):
+    """Get the dataframe from Google Sheets via pandas.
+
+    :param google_sheet: The workbook identifier from google
+    :param gid: The sheet identifier within the workbook
+    :param kwargs: Keyword arguments passed to :func:`pandas.read_csv`.
+    :returns: A pandas dataframe with the single sheet
+    :rtype: pandas.DataFrame
+    """
+    import pandas as pd
+
+    # throw away separator
+    kwargs.pop("sep", None)
+    url = f"https://docs.google.com/spreadsheets/d/{google_sheet}/export?format=tsv&gid={gid}"
+    return pd.read_csv(url, sep='\t', **kwargs)
 
 
 def download_from_google(
